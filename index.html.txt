@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор Зарплати ГШР</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>🧮 Калькулятор ГШР</h2>
+        <p class="subtitle">Розрахунок зарплати та перевірка на бронь</p>
+
+        <div class="form-group">
+            <label>Зміни по 17 годин:</label>
+            <input type="number" id="shifts_17" value="0" min="0">
+        </div>
+
+        <div class="form-group">
+            <label>Зміни по 7 годин:</label>
+            <input type="number" id="shifts_7" value="0" min="0">
+        </div>
+
+        <div class="form-group">
+            <label>Зміни водієм (+100 грн/зм):</label>
+            <input type="number" id="driver_shifts" value="0" min="0">
+        </div>
+
+        <div class="form-group">
+            <label>Стаж роботи (років, від 0 до 5):</label>
+            <input type="number" id="years_exp" value="0" min="0" max="5">
+        </div>
+
+        <div class="form-group">
+            <label>Премії (шт. по 500 грн):</label>
+            <input type="number" id="bonuses" value="0" min="0">
+        </div>
+
+        <div class="form-group">
+            <label>Штрафи (шт. по 500 грн):</label>
+            <input type="number" id="penalties" value="0" min="0">
+        </div>
+
+        <button onclick="calculateSalary()">Порахувати</button>
+
+        <div id="result" class="result-box" style="display: none;"></div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Розгортаємо додаток на весь екран
+
+        const BRON_TARGET = 20200.0;
+        const HOURLY_RATE = 1800.0 / 24.0;
+        const MINE_RATE_12H = 550.0;
+        const CCTV_RATE_12H = 610.0;
+
+        function calculateSalary() {
+            const s17 = parseInt(document.getElementById('shifts_17').value) || 0;
+            const s7 = parseInt(document.getElementById('shifts_7').value) || 0;
+            const driver = parseInt(document.getElementById('driver_shifts').value) || 0;
+            let exp = parseInt(document.getElementById('years_exp').value) || 0;
+            exp = Math.min(Math.max(0, exp), 5);
+            const bonuses = parseInt(document.getElementById('bonuses').value) || 0;
+            const penalties = parseInt(document.getElementById('penalties').value) || 0;
+
+            const total_hours = (s17 * 17) + (s7 * 7);
+            const full_shifts_eq = total_hours / 24.0;
+
+            const base_pay = total_hours * HOURLY_RATE;
+            const driver_bonus = driver * 100.0;
+            const exp_bonus = (exp * 50.0) * full_shifts_eq;
+            const total_bonuses = bonuses * 500.0;
+            const total_penalties = penalties * 500.0;
+
+            const total_earned = base_pay + driver_bonus + exp_bonus + total_bonuses - total_penalties;
+
+            let html = `<h3>📊 Результати розрахунку</h3>`;
+            html += `<p><b>Відпрацьовано:</b> ${total_hours} год. (${full_shifts_eq.toFixed(1)} доби)</p>`;
+            html += `<p><b>Базова оплата:</b> ${base_pay.toFixed(2)} грн</p>`;
+            if (driver > 0) html += `<p><b>Доплата водія:</b> +${driver_bonus.toFixed(2)} грн</p>`;
+            if (exp > 0) html += `<p><b>Доплата за стаж:</b> +${exp_bonus.toFixed(2)} грн</p>`;
+            if (bonuses > 0) html += `<p><b>Премії:</b> +${total_bonuses.toFixed(2)} грн</p>`;
+            if (penalties > 0) html += `<p><b>Штрафи:</b> -${total_penalties.toFixed(2)} грн</p>`;
+            
+            html += `<hr style="margin: 10px 0; border: 0; border-top: 1px solid #ccc;">`;
+            html += `<p><b>💰 РАЗОМ:</b> <span style="color: #2e7d32; font-size: 1.2em;">${total_earned.toFixed(2)} грн</span></p>`;
+            html += `<p><b>🛡️ Мета на бронь:</b> ${BRON_TARGET.toFixed(2)} грн</p>`;
+
+            if (total_earned >= BRON_TARGET) {
+                const surplus = total_earned - BRON_TARGET;
+                html += `<div class="success">✅ <b>Грошей вистачає на бронь!</b><br>Запас: +${surplus.toFixed(2)} грн</div>`;
+            } else {
+                const deficit = BRON_TARGET - total_earned;
+                const mine = Math.ceil(deficit / MINE_RATE_12H);
+                const cctv = Math.ceil(deficit / CCTV_RATE_12H);
+                html += `<div class="error">❌ <b>Грошей не вистачає</b><br>Дефіцит: ${deficit.toFixed(2)} грн</div>`;
+                html += `<div class="recommendations"><b>🛠️ Підробіток:</b><br>• На шахті: ~${mine} змін<br>• Відеоспостереження: ~${cctv} змін</div>`;
+            }
+
+            const resBox = document.getElementById('result');
+            resBox.innerHTML = html;
+            resBox.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
